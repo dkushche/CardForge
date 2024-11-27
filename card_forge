@@ -1,0 +1,251 @@
+#!/usr/bin/env python3
+
+"""
+## Main Info
+
+1. Block size(sector size): 512b
+2. Minimal FAT32 partition: 65527s
+3. Each partittion start sector should be a multiply of 2048 for good performance
+"""
+
+import os
+import sys
+import yaml
+import math
+import string
+import typing
+
+DEVICE_NAME: str = "card-forge.img"
+
+PRIMARY_START = 1
+LOGICAL_START = 5
+
+FLASH_ALIGNMENT_SECTORS: int = 2048
+MINIMAL_FAT32_SECTORS: int = 65527
+
+partition_t = typing.Literal["primary", "logical", "none"]
+layout_t = dict[str, dict[str, str | int] | list[dict[str, str | int]]]
+
+MAX_ID: dict[partition_t, int] = {
+    "primary": 4,
+    "logical": 29,
+}
+
+class FlashEntity:
+    sector_size: int = None
+
+    def __init__(self, start_sector: int, size_sectors: int) -> None:
+        self.start_sector = start_sector
+        self.end_sector = start_sector + size_sectors - 1
+        self.size_sectors = size_sectors
+
+        self.start_bytes = self.start_sector * FlashEntity.sector_size
+        self.size_bytes = self.size_sectors * FlashEntity.sector_size
+
+    def __radd__(self, other: int) -> int:
+        return other + self.size_sectors
+
+
+class Alignment(FlashEntity):
+
+    def __init__(self, start_sector: int):
+        super().__init__(start_sector, FLASH_ALIGNMENT_SECTORS)
+
+
+class Partition(FlashEntity):
+    def __init__(self, name: str, start_sector: int, size_sectors: int, partition_type: str):
+        super().__init__(start_sector, size_sectors)
+        self.name = name
+        self.partition_type = partition_type
+
+    def set_idx(self, idx: int):
+        self.device = f"{DEVICE_NAME}{idx}"
+
+
+class InPlacePartition(Partition):
+
+    def __init__(self, name: str, start_sector: int, min_size_in_bytes: int, partition_type: str):
+        size_sectors = math.ceil(min_size_in_bytes / FlashEntity.sector_size)
+        if partition_type.startswith("c"):
+            if size_sectors < MINIMAL_FAT32_SECTORS:
+                size_sectors = MINIMAL_FAT32_SECTORS
+
+        end_sector_alignment = math.ceil((start_sector + size_sectors) / FLASH_ALIGNMENT_SECTORS) * FLASH_ALIGNMENT_SECTORS
+
+        size_sectors = end_sector_alignment - start_sector
+
+        super().__init__(name, start_sector, size_sectors, partition_type)
+
+
+class ExtendedPartition(Partition):
+
+    def __init__(self, name: str, start_sector: int, end_sector: int) -> None:
+        size_sectors = end_sector - start_sector
+
+        super().__init__(name, start_sector, size_sectors, "5")
+
+
+class Flash(list):
+    def __init__(self, sector_size, size_bytes):
+        super().__init__()
+
+        self.sector: int = 0
+        self.idx: dict[partition_t, int] = {
+            "primary": PRIMARY_START,
+            "logical": LOGICAL_START
+        }
+
+        self.contains_extended: bool = False
+
+        self.size_bytes: int = size_bytes
+        self.size_sectors: int = size_bytes // sector_size
+
+        FlashEntity.sector_size = sector_size
+
+    def append(self, item: FlashEntity, partition_type: partition_t):
+        if partition_type != "none":
+            if self.idx[partition_type] > MAX_ID[partition_type]:
+                raise TypeError(f"It's to much {partition_type} partitions")
+
+            item.set_idx(self.idx[partition_type])
+
+            self.idx[partition_type] += 1
+
+        if isinstance(item, ExtendedPartition):
+            if self.contains_extended is True:
+                raise TypeError("It can't be more then one extended partition for MBR")
+
+            self.contains_extended = True
+            super().insert((LOGICAL_START - self.idx["logical"]) * 2, item)
+        else:
+            self.sector = self.sector + item
+            super().append(item)
+
+
+def calculate_complete_layout(layout: layout_t) -> Flash:
+    complete_layout = Flash(
+        layout["flash"]["sector_size"],
+        layout["flash"]["size_in_bytes"]
+    )
+    partitions = layout["flash"]["partitions"]
+
+    complete_layout.append(
+        Alignment(complete_layout.sector),
+        "none"
+    )
+
+    for name, partition_info in partitions.items():
+        print(f"Processing partition: {name}")
+
+        match partition_info:
+            case list():
+                extended_partition_start_block = complete_layout.sector
+
+                for logical_partition in partition_info:
+                    for logical_partition_name, logical_partition_info in logical_partition.items():
+                        print(f"Processing logical partition: {logical_partition_name}")
+
+                        complete_layout.append(
+                            Alignment(complete_layout.sector),
+                            "none"
+                        )
+                        complete_layout.append(
+                            InPlacePartition(
+                                logical_partition_name, start_sector=complete_layout.sector,
+                                **logical_partition_info
+                            ),
+                            "logical"
+                        )
+
+                complete_layout.append(
+                    ExtendedPartition(name, extended_partition_start_block, complete_layout.sector),
+                    "primary"
+                )
+
+            case dict():
+                complete_layout.append(
+                    InPlacePartition(name, start_sector=complete_layout.sector, **partition_info),
+                    "primary"
+                )
+
+    return complete_layout
+
+
+def load_layout_conf(layout_path: str) -> layout_t:
+    with open(layout_path) as layout_conf:
+        return yaml.safe_load(layout_conf)
+
+
+def create_fsdisk_layout(complete_layout: Flash, layout_path_no_ext: str):
+    with open("workdir/tools/partition_master/layout.template") as layout_template_fd:
+        layout_template = string.Template(layout_template_fd.read())
+
+    partitions = ""
+    for partition in complete_layout:
+        if isinstance(partition, Partition):
+            partitions += f"{partition.device} : start={partition.start_sector}, size={partition.size_sectors}, type={partition.partition_type}\n"
+
+    with open(layout_path_no_ext, mode="w") as layout_fd:
+        layout_fd.write(
+            layout_template.substitute(
+                device_name=DEVICE_NAME,
+                sector_size=FlashEntity.sector_size,
+                partitions=partitions
+            )
+        )
+
+
+def create_env_file(complete_layout: Flash, layout_path_no_ext: str):
+    idx = 0
+
+    with open(f"{layout_path_no_ext}_env", mode="w") as layout_fd:
+        layout_fd.write(f"IMAGE_NAME={DEVICE_NAME}\n")
+        layout_fd.write(f"IMAGE_BLOCKS={complete_layout.sector}\n")
+        layout_fd.write(f"BLOCK_SIZE={FlashEntity.sector_size}\n")
+
+        for partition in complete_layout:
+            if isinstance(partition, Partition):
+                idx += 1
+                layout_fd.write(f"{partition.name.upper()}_PARTITION_ID={idx}\n")
+                layout_fd.write(f"{partition.name.upper()}_START={partition.start_sector}\n")
+                layout_fd.write(f"{partition.name.upper()}_SECTORS={partition.size_sectors}\n")
+
+
+def create_uboot_env_file(complete_layout: Flash, layout_path_no_ext: str):
+    idx = 0
+    mbr_parts = ""
+
+    with open(f"{layout_path_no_ext}_uboot_env", mode="w") as layout_fd:
+        for partition in complete_layout:
+            if isinstance(partition, Partition):
+                idx += 1
+                layout_fd.write(f"{partition.name}_partition_id={idx}\n")
+
+                mbr_parts += f"name={partition.name},start={partition.start_bytes},size={partition.size_bytes},"
+                partition_type_info = partition.partition_type.split(',')
+                partition_type = partition_type_info[0]
+                if len(partition_type_info) == 2:
+                    assert "bootable" in partition_type_info[1]
+                    mbr_parts += "bootable,"
+
+                mbr_parts += f"id={hex(int(partition_type, 16))};"
+        layout_fd.write(f'mbr_parts={mbr_parts}')
+
+
+def main(layout_path: str):
+    layout: layout_t = load_layout_conf(layout_path)
+
+    layout_path_no_ext, _ = os.path.splitext(layout_path)
+
+    complete_layout = calculate_complete_layout(layout)
+    create_fsdisk_layout(complete_layout, layout_path_no_ext)
+    create_env_file(complete_layout, layout_path_no_ext)
+    create_uboot_env_file(complete_layout, layout_path_no_ext)
+
+
+if __name__ == "__main__":
+    try:
+        main(*sys.argv[1:])
+    except TypeError as exc:
+        print(exc)
+        exit(1)

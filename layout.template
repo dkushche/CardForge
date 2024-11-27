@@ -1,0 +1,7 @@
+label: dos
+label-id: 0x9987d5d9
+device: ${device_name}
+unit: sectors
+sector-size: ${sector_size}
+
+${partitions}
