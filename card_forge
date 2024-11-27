@@ -177,7 +177,7 @@ def load_layout_conf(layout_path: str) -> layout_t:
 
 
 def create_fsdisk_layout(complete_layout: Flash, layout_path_no_ext: str):
-    with open("workdir/tools/partition_master/layout.template") as layout_template_fd:
+    with open("layout.template") as layout_template_fd:
         layout_template = string.Template(layout_template_fd.read())
 
     partitions = ""
