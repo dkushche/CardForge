@@ -1,0 +1,13 @@
+flash:
+  label: gpt
+  sector_size: 512
+  size_in_bytes: 17_179_869_184
+  partitions:
+    fsbl1:
+      min_size_in_bytes: 1_048_576
+    fsbl2:
+      min_size_in_bytes: 1_048_576
+    fip:
+      min_size_in_bytes: 2_097_152
+    bootfs:
+      min_size_in_bytes: 61_865_984

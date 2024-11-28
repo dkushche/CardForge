@@ -6,6 +6,8 @@
 1. Block size(sector size): 512b
 2. Minimal FAT32 partition: 65527s
 3. Each partittion start sector should be a multiply of 2048 for good performance
+4. GPT no logical partition
+5. Maximum number of GPT partitions is 128
 """
 
 import os
