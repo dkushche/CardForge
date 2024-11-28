@@ -86,9 +86,10 @@ class ExtendedPartition(Partition):
 
 
 class Flash(list):
-    def __init__(self, sector_size, size_bytes):
+    def __init__(self, label, sector_size, size_bytes):
         super().__init__()
 
+        self.label = label
         self.sector: int = 0
         self.idx: dict[partition_t, int] = {
             "primary": PRIMARY_START,
@@ -124,6 +125,7 @@ class Flash(list):
 
 def calculate_complete_layout(layout: layout_t) -> Flash:
     complete_layout = Flash(
+        layout["flash"]["label"],
         layout["flash"]["sector_size"],
         layout["flash"]["size_in_bytes"]
     )
@@ -188,6 +190,7 @@ def create_fsdisk_layout(complete_layout: Flash, layout_path_no_ext: str):
     with open(layout_path_no_ext, mode="w") as layout_fd:
         layout_fd.write(
             layout_template.substitute(
+                label=complete_layout.label,
                 device_name=DEVICE_NAME,
                 sector_size=FlashEntity.sector_size,
                 partitions=partitions
@@ -236,11 +239,15 @@ def main(layout_path: str):
     layout: layout_t = load_layout_conf(layout_path)
 
     layout_path_no_ext, _ = os.path.splitext(layout_path)
+    out_dir_path = f"{os.path.dirname(layout_path_no_ext)}/{os.path.basename(layout_path_no_ext)}_out"
+
+    os.mkdir(out_dir_path)
+    out_file_path_prefix = f"{out_dir_path}/{os.path.basename(layout_path_no_ext)}"
 
     complete_layout = calculate_complete_layout(layout)
-    create_fsdisk_layout(complete_layout, layout_path_no_ext)
-    create_env_file(complete_layout, layout_path_no_ext)
-    create_uboot_env_file(complete_layout, layout_path_no_ext)
+    create_fsdisk_layout(complete_layout, out_file_path_prefix)
+    create_env_file(complete_layout, out_file_path_prefix)
+    create_uboot_env_file(complete_layout, out_file_path_prefix)
 
 
 if __name__ == "__main__":

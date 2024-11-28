@@ -1,4 +1,5 @@
 flash:
+  label: dos
   sector_size: 512
   size_in_bytes: 31_268_536_320
   partitions:
