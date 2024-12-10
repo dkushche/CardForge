@@ -13,3 +13,7 @@ flash:
       - rootfs_and_overlay_1:
           min_size_in_bytes: 600_000_512
           partition_type: "83"
+configs:
+  - fsdisk_layout
+  - env_file
+  - uboot_env_file

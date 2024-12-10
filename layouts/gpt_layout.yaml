@@ -11,3 +11,6 @@ flash:
       min_size_in_bytes: 2_097_152
     bootfs:
       min_size_in_bytes: 61_865_984
+configs:
+  - fdisk_layout
+  - env_file
