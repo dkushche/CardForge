@@ -20,14 +20,14 @@ import lib.base_storage_entities
 import lib.configuration_generators
 
 
-def calculate_complete_layout(layout: dict) -> lib.storage:
-    storage_module = importlib.import_module(f"lib.{layout["label"]}_storage")
+def calculate_complete_layout(flash_layout: dict) -> lib.storage.Storage:
+    storage_module = importlib.import_module(f"lib.{flash_layout["label"]}_storage")
 
     complete_layout = storage_module.Storage(
-        layout["sector_size"], layout["size_in_bytes"]
+        flash_layout["sector_size"], flash_layout["size_in_bytes"]
     )
 
-    partitions = layout["partitions"]
+    partitions = flash_layout["partitions"]
 
     complete_layout.append(
         lib.base_storage_entities.Alignment(complete_layout.sector),
@@ -75,30 +75,17 @@ def calculate_complete_layout(layout: dict) -> lib.storage:
     return complete_layout
 
 
-def load_layout_conf(layout_path: str) -> dict:
-    with open(layout_path) as layout_conf:
+def load_image_conf(image_config_path: str) -> dict:
+    with open(image_config_path) as layout_conf:
         return yaml.safe_load(layout_conf)
 
 
-def form_out_path(layout_path: str) -> str:
-    layout_path_no_ext, _ = os.path.splitext(layout_path)
-    out_dir_path = f"{os.path.dirname(layout_path_no_ext)}/{os.path.basename(layout_path_no_ext)}_out"
-
-    os.mkdir(out_dir_path)
-
-    return f"{out_dir_path}/{os.path.basename(layout_path_no_ext)}"
-
-
-def main(layout_path: str):
-    layout: dict = load_layout_conf(layout_path)
-    out_file_path_prefix: str = form_out_path(layout_path)
-    complete_layout = calculate_complete_layout(layout["flash"])
-
+def generate_configs(complete_layout: lib.storage.Storage, out_dir: str, config_names: dict):
     config_generator = lib.configuration_generators.ConfigurationsGenerator(
-        complete_layout, out_file_path_prefix
+        complete_layout, out_dir
     )
 
-    for config_name in layout["configs"]:
+    for config_name in config_names:
         configurator = getattr(config_generator, f"_iface_{config_name}", None)
         if configurator is None:
             print(f"Warning: configurator {config_name} not found")
@@ -106,9 +93,13 @@ def main(layout_path: str):
             configurator()
 
 
+def main(image_config_path: str):
+    image_conf: dict = load_image_conf(image_config_path)
+    out_dir: str = os.path.dirname(image_config_path)
+    complete_layout: lib.storage.Storage = calculate_complete_layout(image_conf["flash"])
+
+    generate_configs(complete_layout, out_dir, image_conf["configs"])
+
+
 if __name__ == "__main__":
-    # try:
-        main(*sys.argv[1:])
-    # except TypeError as exc:
-    #     print(exc)
-    #     exit(1)
+    main(*sys.argv[1:])

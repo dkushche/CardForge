@@ -1,3 +1,4 @@
+import os
 import string
 
 import lib.base_storage_entities
@@ -5,9 +6,11 @@ import lib.storage
 
 class ConfigurationsGenerator:
 
-    def __init__(self, complete_layout: lib.storage.Storage, layout_path_no_ext: str):
+    def __init__(self, complete_layout: lib.storage.Storage, out_dir: str):
         self.complete_layout = complete_layout
-        self.layout_path_no_ext = layout_path_no_ext
+        self.out_dir = f"{out_dir}/configs"
+
+        os.mkdir(self.out_dir)
 
     def _iface_fsdisk_layout(self):
         with open("layout.template") as layout_template_fd:
@@ -16,9 +19,15 @@ class ConfigurationsGenerator:
         partitions = ""
         for partition in self.complete_layout:
             if isinstance(partition, lib.base_storage_entities.Partition):
-                partitions += f"{partition.device} : start={partition.start_sector}, size={partition.size_sectors}, type={partition.partition_type}\n"
+                partition_info = ", ".join([
+                    f"start={partition.start_sector}",
+                    f"size={partition.size_sectors}",
+                    f"type={partition.partition_type}",
+                    f"name={partition.name}"
+                ])
+                partitions += f"{partition.device} : {partition_info}\n"
 
-        with open(self.layout_path_no_ext, mode="w") as layout_fd:
+        with open(f"{self.out_dir}/layout", mode="w") as layout_fd:
             layout_fd.write(
                 layout_template.substitute(
                     label=self.complete_layout.label,
@@ -31,7 +40,7 @@ class ConfigurationsGenerator:
     def _iface_env_file(self):
         idx = 0
 
-        with open(f"{self.layout_path_no_ext}_env", mode="w") as layout_fd:
+        with open(f"{self.out_dir}/layout_env", mode="w") as layout_fd:
             layout_fd.write(f"IMAGE_NAME={lib.base_storage_entities.STORAGE_NAME}\n")
             layout_fd.write(f"IMAGE_BLOCKS={self.complete_layout.sector}\n")
             layout_fd.write(f"BLOCK_SIZE={lib.base_storage_entities.StorageEntity.sector_size}\n")
@@ -47,7 +56,7 @@ class ConfigurationsGenerator:
         idx = 0
         mbr_parts = ""
 
-        with open(f"{self.layout_path_no_ext}_uboot_env", mode="w") as layout_fd:
+        with open(f"{self.out_dir}/layout_uboot_env", mode="w") as layout_fd:
             for partition in self.complete_layout:
                 if isinstance(partition, lib.base_storage_entities.Partition):
                     idx += 1
@@ -61,4 +70,4 @@ class ConfigurationsGenerator:
                         mbr_parts += "bootable,"
 
                     mbr_parts += f"id={hex(int(partition_type, 16))};"
-            layout_fd.write(f'mbr_parts={mbr_parts}')
+            layout_fd.write(f'mbr_parts={mbr_parts}\n')

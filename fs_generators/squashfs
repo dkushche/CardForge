@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import subprocess
+
+def main(source_dir: str):
+    image_name = os.path.basename(source_dir)
+    image = f"{image_name}.image.squashfs"
+
+    subprocess.call(
+        [
+            "mksquashfs", source_dir, image,
+            "-all-root", "-nopad",  "-noappend", "-b", "256K", "-comp", "xz",
+            "-p", "/dev d 755 0 0",
+            "-p", "/dev/console c 600 0 0 5 1"
+        ], check=True
+    )
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:])

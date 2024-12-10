@@ -39,7 +39,11 @@ class Partition(StorageEntity):
 
 class InPlacePartition(Partition):
 
-    def __init__(self, name: str, start_sector: int, min_size_in_bytes: int, partition_type: str):
+    def __init__(self,
+        name: str, start_sector: int,
+        min_size_in_bytes: int, partition_type: str,
+        fs_generator: str | None
+    ):
         size_sectors = math.ceil(min_size_in_bytes / StorageEntity.sector_size)
 
         if partition_type.startswith("c"):
@@ -51,6 +55,8 @@ class InPlacePartition(Partition):
         ) * STORAGE_ALIGNMENT_SECTORS
 
         size_sectors = end_sector_alignment - start_sector
+
+        self.fs_generator = fs_generator
 
         super().__init__(name, start_sector, size_sectors, partition_type)
 

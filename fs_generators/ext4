@@ -4,11 +4,9 @@ import os
 import sys
 import subprocess
 
-def main(tmp_dir: str, partition_name: str,
-         sector_size: str, sectors: str,
-         source_dir: str):
-
-    image = f"{tmp_dir}/{partition_name}.img"
+def main(partition_name: str, sector_size: str, sectors: str, source_dir: str):
+    image_name = os.path.basename(source_dir)
+    image = f"{image_name}.image.ext4"
 
     subprocess.run(
         [
@@ -42,5 +40,8 @@ def main(tmp_dir: str, partition_name: str,
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) == 6
     main(*sys.argv[1:])
+
+# debugfs -f cmd_file
+# mkfs.ext4 -L boot -O ^metadata_csum
+# dd
