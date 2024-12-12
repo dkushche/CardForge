@@ -4,9 +4,9 @@ import os
 import sys
 import subprocess
 
-def main(source_dir: str):
-    image_name = os.path.basename(source_dir)
-    image = f"{image_name}.image.squashfs"
+def pack(partition_name: str, sector_size: str, sectors: str, source_dir: str):
+    source_dir = source_dir.rstrip("/")
+    image = f"{source_dir}.image.squashfs"
 
     subprocess.call(
         [
@@ -19,4 +19,4 @@ def main(source_dir: str):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:])
+    pack(*sys.argv[1:])

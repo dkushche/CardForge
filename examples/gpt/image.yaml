@@ -6,19 +6,15 @@ flash:
     fsbl1:
       min_size_in_bytes: 1_048_576
       partition_type: "0xEF02"
-      fs_generator: null
     fsbl2:
       min_size_in_bytes: 1_048_576
       partition_type: "0xEF02"
-      fs_generator: null
     fip:
       min_size_in_bytes: 2_097_152
       partition_type: "0xEF00"
-      fs_generator: null
     bootfs:
       min_size_in_bytes: 61_865_984
       partition_type: "0x8300"
-      fs_generator: ext4
 
 configs:
   - fsdisk_layout

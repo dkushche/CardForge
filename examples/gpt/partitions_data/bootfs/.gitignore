@@ -1,3 +1,4 @@
 *
 
-!.gitignore
+!/ext4
+!/.gitignore

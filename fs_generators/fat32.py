@@ -4,9 +4,9 @@ import os
 import sys
 import subprocess
 
-def main(partition_name: str, sector_size: str, sectors: str, source_dir: str):
-    image_name = os.path.basename(source_dir)
-    image = f"{image_name}.image.ext4"
+def pack(partition_name: str, sector_size: str, sectors: str, source_dir: str):
+    source_dir = source_dir.rstrip("/")
+    image = f"{source_dir}.image.vfat"
 
     subprocess.run(
         [
@@ -40,8 +40,4 @@ def main(partition_name: str, sector_size: str, sectors: str, source_dir: str):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:])
-
-# debugfs -f cmd_file
-# mkfs.ext4 -L boot -O ^metadata_csum
-# dd
+    pack(*sys.argv[1:])
