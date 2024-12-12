@@ -6,7 +6,9 @@ import shutil
 import tempfile
 import subprocess
 
-def pack(partition_name: str, sector_size: str, sectors: str, source_dir: str):
+
+def pack(source_dir: str, sector_size: str, sectors: str):
+    partition_name = os.path.basename(source_dir)
     source_dir = source_dir.rstrip("/")
     target_dir = f"{source_dir}/ext4"
 
