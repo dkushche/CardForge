@@ -55,6 +55,14 @@ def forge(result_image_path, image_config, image_partition_data_dir):
             )
 
         if os.path.exists(partition_image_path):
+            partition_size = int(image_config["BLOCK_SIZE"]) * int(image_config[f"{partition_name.upper()}_SECTORS"])
+            partition_image_size = os.path.getsize(partition_image_path)
+
+            if partition_image_size > partition_size:
+                raise TypeError(
+                    f"Error: {partition_image_path=} to big {partition_image_size=} > {partition_size=}"
+                )
+
             lib.image_utils.write_image_to_image(
                 partition_image_path, result_image_path,
                 image_config["BLOCK_SIZE"],

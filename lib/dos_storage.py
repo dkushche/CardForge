@@ -41,3 +41,48 @@ class Storage(lib.storage.Storage):
             super().insert((self.START_ID["logical"] - self.idx["logical"]) * 2, item)
         else:
             self.add_item(item)
+
+
+    def calculate(self, partitions: dict):
+        self.append(
+            lib.base_storage_entities.Alignment(self.sector),
+            "none"
+        )
+
+        for name, partition_info in partitions.items():
+            print(f"Processing partition: {name}")
+
+            match partition_info:
+                case list():
+                    extended_partition_start_block = self.sector
+
+                    for logical_partition in partition_info:
+                        for logical_partition_name, logical_partition_info in logical_partition.items():
+                            print(f"Processing logical partition: {logical_partition_name}")
+
+                            self.append(
+                                lib.base_storage_entities.Alignment(self.sector),
+                                "none"
+                            )
+                            self.append(
+                                lib.base_storage_entities.InPlacePartition(
+                                    logical_partition_name, start_sector=self.sector,
+                                    **logical_partition_info
+                                ),
+                                "logical"
+                            )
+
+                    self.append(
+                        lib.base_storage_entities.ExtendedPartition(
+                            name, extended_partition_start_block, self.sector
+                        ),
+                        "primary"
+                    )
+
+                case dict():
+                    self.append(
+                        lib.base_storage_entities.InPlacePartition(
+                            name, start_sector=self.sector, **partition_info
+                        ),
+                        "primary"
+                    )

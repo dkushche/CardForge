@@ -23,8 +23,8 @@ class StorageEntity:
 
 class Alignment(StorageEntity):
 
-    def __init__(self, start_sector: int):
-        super().__init__(start_sector, STORAGE_ALIGNMENT_SECTORS)
+    def __init__(self, start_sector: int, size_sectors: int = STORAGE_ALIGNMENT_SECTORS):
+        super().__init__(start_sector, size_sectors)
 
 
 class Partition(StorageEntity):
@@ -43,9 +43,11 @@ class InPlacePartition(Partition):
         name: str, start_sector: int,
         min_size_in_bytes: int, partition_type: str, fs_generation_handler: str
     ):
+        self.fs_generation_handler = fs_generation_handler
+
         size_sectors = math.ceil(min_size_in_bytes / StorageEntity.sector_size)
 
-        if partition_type.startswith("c"):
+        if self.fs_generation_handler == "fat32":
             if size_sectors < MINIMAL_FAT32_SECTORS:
                 size_sectors = MINIMAL_FAT32_SECTORS
 
@@ -55,7 +57,6 @@ class InPlacePartition(Partition):
 
         size_sectors = end_sector_alignment - start_sector
 
-        self.fs_generation_handler = fs_generation_handler
         super().__init__(name, start_sector, size_sectors, partition_type)
 
 

@@ -35,48 +35,7 @@ def calculate_complete_layout(flash_layout: dict) -> lib.storage.Storage:
 
     partitions = flash_layout["partitions"]
 
-    complete_layout.append(
-        lib.base_storage_entities.Alignment(complete_layout.sector),
-        "none"
-    )
-
-    for name, partition_info in partitions.items():
-        print(f"Processing partition: {name}")
-
-        match partition_info:
-            case list():
-                extended_partition_start_block = complete_layout.sector
-
-                for logical_partition in partition_info:
-                    for logical_partition_name, logical_partition_info in logical_partition.items():
-                        print(f"Processing logical partition: {logical_partition_name}")
-
-                        complete_layout.append(
-                            lib.base_storage_entities.Alignment(complete_layout.sector),
-                            "none"
-                        )
-                        complete_layout.append(
-                            lib.base_storage_entities.InPlacePartition(
-                                logical_partition_name, start_sector=complete_layout.sector,
-                                **logical_partition_info
-                            ),
-                            "logical"
-                        )
-
-                complete_layout.append(
-                    lib.base_storage_entities.ExtendedPartition(
-                        name, extended_partition_start_block, complete_layout.sector
-                    ),
-                    "primary"
-                )
-
-            case dict():
-                complete_layout.append(
-                    lib.base_storage_entities.InPlacePartition(
-                        name, start_sector=complete_layout.sector, **partition_info
-                    ),
-                    "primary"
-                )
+    complete_layout.calculate(partitions)
 
     return complete_layout
 
