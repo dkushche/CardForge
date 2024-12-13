@@ -14,6 +14,9 @@ def pack(source_dir: str, sector_size: str, sectors: str):
     source_dir = source_dir.rstrip("/")
     target_dir = f"{source_dir}/ext4"
 
+    if not os.path.exists(target_dir):
+        raise TypeError(f"{target_dir=} not found")
+
     with tempfile.TemporaryDirectory() as temp_dir:
         image_name = f"{partition_name}.image"
         image_path = f"{temp_dir}/{image_name}"

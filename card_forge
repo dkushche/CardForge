@@ -46,11 +46,10 @@ def forge(result_image_path, image_config, image_partition_data_dir):
 
         if not os.path.exists(partition_image_path):
             target_fs = partition_dir_subfolders[0]
-            source_dir = f"{partition_dir}/{target_fs}"
 
             fs_generator = importlib.import_module(f"fs_generators.{target_fs}")
             fs_generator.pack(
-                source_dir,
+                partition_dir,
                 image_config["BLOCK_SIZE"],
                 image_config[f"{partition_name.upper()}_SECTORS"]
             )

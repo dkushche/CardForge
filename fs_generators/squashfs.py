@@ -11,6 +11,9 @@ def pack(source_dir: str, sector_size: str = "0", sectors: str = "0"):
     source_dir = source_dir.rstrip("/")
     target_dir = f"{source_dir}/squashfs"
 
+    if not os.path.exists(target_dir):
+        raise TypeError(f"{target_dir=} not found")
+
     with tempfile.TemporaryDirectory() as temp_dir:
         image_name = f"{partition_name}.image"
         image_path = f"{temp_dir}/{image_name}"
