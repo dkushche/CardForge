@@ -5,17 +5,19 @@ flash:
   partitions:
     fsbl1:
       min_size_in_bytes: 1_048_576
-      partition_type: "0xEF02"
+      partition_type: "21686148-6449-6E6F-744E-656564454649"
+      fs_generation_handler: null
     fsbl2:
       min_size_in_bytes: 1_048_576
-      partition_type: "0xEF02"
+      partition_type: "21686148-6449-6E6F-744E-656564454649"
+      fs_generation_handler: null
     fip:
       min_size_in_bytes: 2_097_152
-      partition_type: "0xEF00"
+      partition_type: "C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+      fs_generation_handler: null
     bootfs:
       min_size_in_bytes: 61_865_984
-      partition_type: "0x8300"
+      partition_type: "0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+      fs_generation_handler: ext4
 
-configs:
-  - fsdisk_layout
-  - env_file
+additional_configs: []

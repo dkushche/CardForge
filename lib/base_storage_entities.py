@@ -1,6 +1,6 @@
 import math
 
-STORAGE_NAME: str = "card-forge.img"
+STORAGE_NAME: str = "card-forge.image"
 DEFAULT_SECTOR_SIZE = 512
 STORAGE_ALIGNMENT_SECTORS: int = 2048
 MINIMAL_FAT32_SECTORS: int = 65527
@@ -41,7 +41,7 @@ class InPlacePartition(Partition):
 
     def __init__(self,
         name: str, start_sector: int,
-        min_size_in_bytes: int, partition_type: str
+        min_size_in_bytes: int, partition_type: str, fs_generation_handler: str
     ):
         size_sectors = math.ceil(min_size_in_bytes / StorageEntity.sector_size)
 
@@ -55,6 +55,7 @@ class InPlacePartition(Partition):
 
         size_sectors = end_sector_alignment - start_sector
 
+        self.fs_generation_handler = fs_generation_handler
         super().__init__(name, start_sector, size_sectors, partition_type)
 
 

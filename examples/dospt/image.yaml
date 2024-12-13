@@ -6,15 +6,16 @@ flash:
     boot:
       min_size_in_bytes: 13_997_561
       partition_type: "c, bootable"
+      fs_generation_handler: fat32
     extended_a:
       - kernel_1:
           min_size_in_bytes: 3_301_408
           partition_type: "c"
+          fs_generation_handler: fat32
       - rootfs_and_overlay_1:
           min_size_in_bytes: 600_000_512
           partition_type: "83"
+          fs_generation_handler: squashfs
 
-configs:
-  - fsdisk_layout
-  - env_file
+additional_configs:
   - uboot_env_file

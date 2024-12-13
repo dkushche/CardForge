@@ -6,6 +6,8 @@ import shutil
 import tempfile
 import subprocess
 
+import lib.image_utils
+
 
 def pack(source_dir: str, sector_size: str, sectors: str):
     partition_name = os.path.basename(source_dir)
@@ -16,11 +18,7 @@ def pack(source_dir: str, sector_size: str, sectors: str):
         image_name = f"{partition_name}.image"
         image_path = f"{temp_dir}/{image_name}"
 
-        subprocess.run(
-            [
-                "dd", "if=/dev/zero", f"of={image_path}", f"bs={sector_size}", f"count={sectors}"
-            ], check=True
-        )
+        lib.image_utils.generate_empty_image(image_path, sector_size, sectors)
 
         subprocess.run(
             [

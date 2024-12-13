@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+
+"""
+## Main Info
+
+1. Block size(sector size): 512b
+2. Minimal FAT32 partition: 65527s
+3. Each partittion start sector should be a multiply of 2048 for good performance
+4. GPT no logical partition
+5. Maximum number of GPT partitions is 128
+"""
+
+import os
+import sys
+import yaml
+import importlib
+
+import lib.storage
+import lib.preconfigurators
+import lib.base_storage_entities
+
+IMAGE_CONFIG_FILE_NAME = "image.yaml"
+DEFUALT_CONFIGURATORS = [
+    "fsdisk_layout",
+    "env_file",
+    "directory_structure",
+]
+
+def calculate_complete_layout(flash_layout: dict) -> lib.storage.Storage:
+    storage_module = importlib.import_module(f"lib.{flash_layout["label"]}_storage")
+
+    complete_layout = storage_module.Storage(
+        flash_layout["sector_size"], flash_layout["size_in_bytes"]
+    )
+
+    partitions = flash_layout["partitions"]
+
+    complete_layout.append(
+        lib.base_storage_entities.Alignment(complete_layout.sector),
+        "none"
+    )
+
+    for name, partition_info in partitions.items():
+        print(f"Processing partition: {name}")
+
+        match partition_info:
+            case list():
+                extended_partition_start_block = complete_layout.sector
+
+                for logical_partition in partition_info:
+                    for logical_partition_name, logical_partition_info in logical_partition.items():
+                        print(f"Processing logical partition: {logical_partition_name}")
+
+                        complete_layout.append(
+                            lib.base_storage_entities.Alignment(complete_layout.sector),
+                            "none"
+                        )
+                        complete_layout.append(
+                            lib.base_storage_entities.InPlacePartition(
+                                logical_partition_name, start_sector=complete_layout.sector,
+                                **logical_partition_info
+                            ),
+                            "logical"
+                        )
+
+                complete_layout.append(
+                    lib.base_storage_entities.ExtendedPartition(
+                        name, extended_partition_start_block, complete_layout.sector
+                    ),
+                    "primary"
+                )
+
+            case dict():
+                complete_layout.append(
+                    lib.base_storage_entities.InPlacePartition(
+                        name, start_sector=complete_layout.sector, **partition_info
+                    ),
+                    "primary"
+                )
+
+    return complete_layout
+
+
+def load_image_conf(image_config_path: str) -> dict:
+    with open(image_config_path) as layout_conf:
+        return yaml.safe_load(layout_conf)
+
+
+def generate_configs(complete_layout: lib.storage.Storage, out_dir: str, config_names: dict):
+    config_generator = lib.preconfigurators.PreConfigurators(
+        complete_layout, out_dir
+    )
+
+    for config_name in config_names:
+        configurator = getattr(config_generator, f"_iface_{config_name}", None)
+        if configurator is None:
+            print(f"Warning: configurator {config_name} not found")
+        else:
+            configurator()
+
+
+def main(image_proj_dir: str):
+    image_proj_dir = image_proj_dir.rstrip("/")
+
+    if not os.path.isdir(image_proj_dir):
+        raise TypeError(f"{image_proj_dir=} should be a directory")
+
+    image_config_path = f"{image_proj_dir}/{IMAGE_CONFIG_FILE_NAME}"
+
+    image_conf: dict = load_image_conf(image_config_path)
+    out_dir: str = os.path.dirname(image_config_path)
+    complete_layout: lib.storage.Storage = calculate_complete_layout(image_conf["flash"])
+
+    configs = [
+        *DEFUALT_CONFIGURATORS,
+        *image_conf["additional_configs"]
+    ]
+
+    generate_configs(complete_layout, out_dir, configs)
+
+
+if __name__ == "__main__":
+    main(*sys.argv[1:])

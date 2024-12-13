@@ -1,104 +1,85 @@
 #!/usr/bin/env python3
 
-"""
-## Main Info
-
-1. Block size(sector size): 512b
-2. Minimal FAT32 partition: 65527s
-3. Each partittion start sector should be a multiply of 2048 for good performance
-4. GPT no logical partition
-5. Maximum number of GPT partitions is 128
-"""
-
 import os
 import sys
-import yaml
 import importlib
 
-import lib.storage
-import lib.base_storage_entities
-import lib.configuration_generators
+import dotenv
+
+import lib.image_utils
+import lib.preconfigurators
 
 
-def calculate_complete_layout(flash_layout: dict) -> lib.storage.Storage:
-    storage_module = importlib.import_module(f"lib.{flash_layout["label"]}_storage")
+def generate_result_image(image_proj_dir, image_config, image_config_dir):
+    result_image_path = f"{image_proj_dir}/{image_config['IMAGE_NAME']}"
 
-    complete_layout = storage_module.Storage(
-        flash_layout["sector_size"], flash_layout["size_in_bytes"]
+    lib.image_utils.generate_empty_image(
+        result_image_path, image_config["BLOCK_SIZE"], image_config["IMAGE_BLOCKS"]
     )
 
-    partitions = flash_layout["partitions"]
+    fdisk_layout_path =  f"{image_config_dir}/{lib.preconfigurators.FDISK_LAYOUT_FILENAME}"
 
-    complete_layout.append(
-        lib.base_storage_entities.Alignment(complete_layout.sector),
-        "none"
+    lib.image_utils.create_partition_table(
+        result_image_path, fdisk_layout_path
     )
 
-    for name, partition_info in partitions.items():
-        print(f"Processing partition: {name}")
-
-        match partition_info:
-            case list():
-                extended_partition_start_block = complete_layout.sector
-
-                for logical_partition in partition_info:
-                    for logical_partition_name, logical_partition_info in logical_partition.items():
-                        print(f"Processing logical partition: {logical_partition_name}")
-
-                        complete_layout.append(
-                            lib.base_storage_entities.Alignment(complete_layout.sector),
-                            "none"
-                        )
-                        complete_layout.append(
-                            lib.base_storage_entities.InPlacePartition(
-                                logical_partition_name, start_sector=complete_layout.sector,
-                                **logical_partition_info
-                            ),
-                            "logical"
-                        )
-
-                complete_layout.append(
-                    lib.base_storage_entities.ExtendedPartition(
-                        name, extended_partition_start_block, complete_layout.sector
-                    ),
-                    "primary"
-                )
-
-            case dict():
-                complete_layout.append(
-                    lib.base_storage_entities.InPlacePartition(
-                        name, start_sector=complete_layout.sector, **partition_info
-                    ),
-                    "primary"
-                )
-
-    return complete_layout
+    return result_image_path
 
 
-def load_image_conf(image_config_path: str) -> dict:
-    with open(image_config_path) as layout_conf:
-        return yaml.safe_load(layout_conf)
+def check_required_dirs(*required_dirs):
+    for required_dir in required_dirs:
+        if not os.path.isdir(required_dir):
+            raise TypeError(f"{required_dir=} isn't found please run forge_prepare firstly")
 
 
-def generate_configs(complete_layout: lib.storage.Storage, out_dir: str, config_names: dict):
-    config_generator = lib.configuration_generators.ConfigurationsGenerator(
-        complete_layout, out_dir
-    )
+def forge(result_image_path, image_config, image_partition_data_dir):
+    for partition_name in os.listdir(image_partition_data_dir):
+        partition_dir = f"{image_partition_data_dir}/{partition_name}"
+        partition_image_path = f"{partition_dir}/{partition_name}.image"
 
-    for config_name in config_names:
-        configurator = getattr(config_generator, f"_iface_{config_name}", None)
-        if configurator is None:
-            print(f"Warning: configurator {config_name} not found")
+        partition_dir_subfolders = os.listdir(partition_dir)
+        if len(partition_dir_subfolders) != 1:
+            raise TypeError(
+                f"Error processing {partition_name=} it should contain {partition_name}.image"
+                "or directory named as filesystem you want to pack it in"
+            )
+
+        if not os.path.exists(partition_image_path):
+            target_fs = partition_dir_subfolders[0]
+            source_dir = f"{partition_dir}/{target_fs}"
+
+            fs_generator = importlib.import_module(f"fs_generators.{target_fs}")
+            fs_generator.pack(
+                source_dir,
+                image_config["BLOCK_SIZE"],
+                image_config[f"{partition_name.upper()}_SECTORS"]
+            )
+
+        if os.path.exists(partition_image_path):
+            lib.image_utils.write_image_to_image(
+                partition_image_path, result_image_path,
+                image_config["BLOCK_SIZE"],
+                image_config[f"{partition_name.upper()}_START"]
+            )
         else:
-            configurator()
+            raise TypeError(
+                f"Error: {partition_image_path=} not found and not flashed"
+            )
+
+    print(f"Forged! Image available in {result_image_path}")
 
 
-def main(image_config_path: str):
-    image_conf: dict = load_image_conf(image_config_path)
-    out_dir: str = os.path.dirname(image_config_path)
-    complete_layout: lib.storage.Storage = calculate_complete_layout(image_conf["flash"])
+def main(image_proj_dir: str):
+    image_proj_dir = image_proj_dir.rstrip("/")
+    image_config_dir = f"{image_proj_dir}/{lib.preconfigurators.PRECONFIG_CONFIG_DIR}"
+    image_partition_data_dir = f"{image_proj_dir}/{lib.preconfigurators.PRECONFIG_PRATITIONS_DATA_DIR}"
 
-    generate_configs(complete_layout, out_dir, image_conf["configs"])
+    check_required_dirs(image_config_dir, image_partition_data_dir)
+
+    image_config = dotenv.dotenv_values(f"{image_config_dir}/{lib.preconfigurators.ENV_CONFIG_FILENAME}")
+    result_image_path = generate_result_image(image_proj_dir, image_config, image_config_dir)
+
+    forge(result_image_path, image_config, image_partition_data_dir)
 
 
 if __name__ == "__main__":
