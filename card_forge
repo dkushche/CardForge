@@ -41,7 +41,7 @@ def forge(result_image_path, image_config, image_partition_data_dir):
         if len(partition_dir_subfolders) != 1:
             raise TypeError(
                 f"Error processing {partition_name=} it should contain {partition_name}.image"
-                "or directory named as filesystem you want to pack it in"
+                " or directory named as filesystem you want to pack it in"
             )
 
         if not os.path.exists(partition_image_path):
