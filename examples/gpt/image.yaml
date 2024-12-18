@@ -16,8 +16,13 @@ flash:
       partition_type: "C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
       fs_generation_handler: null
     bootfs:
-      min_size_in_bytes: 61_865_984
+      min_size_in_bytes: 33_549_824
       partition_type: "0FC63DAF-8483-4772-8E79-3D69D8477DE4"
-      fs_generation_handler: ext4
+      fs_generation_handler: fat32
+    kernel_dtb_fit:
+      min_size_in_bytes: 10_000_000
+      partition_type: "0FC63DAF-8483-4772-8E79-3D69D8477DE4"
+      fs_generation_handler: null
 
-additional_configs: []
+additional_configs:
+  - uboot_env_file
