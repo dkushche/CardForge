@@ -18,4 +18,4 @@ flash:
           fs_generation_handler: squashfs
 
 additional_configs:
-  - uboot_env_file
+  - uboot_mbr_env_file

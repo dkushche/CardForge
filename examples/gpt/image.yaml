@@ -25,4 +25,4 @@ flash:
       fs_generation_handler: null
 
 additional_configs:
-  - uboot_env_file
+  - uboot_minimal_env_file

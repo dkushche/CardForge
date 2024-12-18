@@ -65,25 +65,39 @@ class PreConfigurators:
                     layout_fd.write(f"{partition.name.upper()}_START={partition.start_sector}\n")
                     layout_fd.write(f"{partition.name.upper()}_SECTORS={partition.size_sectors}\n")
 
-    def _iface_uboot_env_file(self):
+    def __uboot_base_env_file(self, layout_fd):
         idx = 0
+
+        for partition in self.complete_layout:
+            if isinstance(partition, lib.base_storage_entities.Partition):
+                idx += 1
+                layout_fd.write(f"{partition.name}_partition_id={idx}\n")
+
+    def _iface_uboot_minimal_env_file(self):
+        layout_fd = open(f"{self.config_output_dir}/{UBOOT_ENV_CONFIG_FILENAME}", mode="w")
+        self.__uboot_base_env_file(layout_fd)
+        layout_fd.close()
+
+    def _iface_uboot_mbr_env_file(self):
         mbr_parts = ""
 
-        with open(f"{self.config_output_dir}/{UBOOT_ENV_CONFIG_FILENAME}", mode="w") as layout_fd:
-            for partition in self.complete_layout:
-                if isinstance(partition, lib.base_storage_entities.Partition):
-                    idx += 1
-                    layout_fd.write(f"{partition.name}_partition_id={idx}\n")
+        layout_fd = open(f"{self.config_output_dir}/{UBOOT_ENV_CONFIG_FILENAME}", mode="w")
+        self.__uboot_base_env_file(layout_fd)
 
-                    mbr_parts += f"name={partition.name},start={partition.start_bytes},size={partition.size_bytes},"
-                    partition_type_info = partition.partition_type.split(',')
-                    partition_type = partition_type_info[0]
-                    if len(partition_type_info) == 2:
-                        assert "bootable" in partition_type_info[1]
-                        mbr_parts += "bootable,"
+        for partition in self.complete_layout:
+            if isinstance(partition, lib.base_storage_entities.Partition):
+                mbr_parts += f"name={partition.name},start={partition.start_bytes},size={partition.size_bytes},"
+                partition_type_info = partition.partition_type.split(',')
+                partition_type = partition_type_info[0]
+                if len(partition_type_info) == 2:
+                    assert "bootable" in partition_type_info[1]
+                    mbr_parts += "bootable,"
 
-                    mbr_parts += f"id={hex(int(partition_type, 16))};"
+                mbr_parts += f"id={hex(int(partition_type, 16))};"
+
             layout_fd.write(f'mbr_parts={mbr_parts}\n')
+
+        layout_fd.close()
 
     def _iface_directory_structure(self):
         for partition in self.complete_layout:
