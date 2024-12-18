@@ -36,7 +36,7 @@ At least contains `fdisk_layout` and `layout_env`, but may contain more in accor
 
 For each partition in [config file](#config-file) will be created directory
 
-In partitions directories for partitions that require files be as part of some filesystem like `ext4` or `fat32` will be additional folder named as a filesystem required. Place your files in such subfolder and `card_forge` will generate image that contain filesystem and your files with name `${partition_name}.image`.
+In partitions directories for partitions that require files be as part of some filesystem like `ext4` or `fat16` will be additional folder named as a filesystem required. Place your files in such subfolder and `card_forge` will generate image that contain filesystem and your files with name `${partition_name}.image`.
 
 For partitions which you want to fill with binaries like TF-A or UBoot, just place binary in partition folder and name it `${partition_name}.image` and `card_forge` will do its job
 
@@ -73,7 +73,7 @@ This is table specific but follow such structure and everything should be fine:
 partition_name:
     min_size_in_bytes: X # There are some things like minimal size of filesystem and alignment so you set your size card_forge will add some parts that you missed, so final partitions size will be bigger or equal
     partition_type: Y # Quite specific for table check fdisk variants for type=
-    fs_generation_handler: Z # null - you will provide partition_name.image, some filesystem like 'fat32' - you will place your files in partition_name/fat32
+    fs_generation_handler: Z # null - you will provide partition_name.image, some filesystem like 'fat16' - you will place your files in partition_name/fat16
 ```
 
 Anyway I have examples for each table, so it should be understandable

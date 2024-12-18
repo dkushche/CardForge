@@ -12,7 +12,7 @@ import lib.image_utils
 def pack(source_dir: str, sector_size: str, sectors: str):
     partition_name = os.path.basename(source_dir)
     source_dir = source_dir.rstrip("/")
-    target_dir = f"{source_dir}/fat32"
+    target_dir = f"{source_dir}/fat16"
 
     if not os.path.exists(target_dir):
         raise TypeError(f"{target_dir=} not found")
