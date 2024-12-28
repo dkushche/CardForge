@@ -78,6 +78,19 @@ class PreConfigurators:
         self.__uboot_base_env_file(layout_fd)
         layout_fd.close()
 
+    def _iface_uboot_gpt_env_file(self):
+        gpt_parts = ""
+
+        layout_fd = open(f"{self.config_output_dir}/{UBOOT_ENV_CONFIG_FILENAME}", mode="w")
+        self.__uboot_base_env_file(layout_fd)
+
+        for partition in self.complete_layout:
+            if isinstance(partition, lib.base_storage_entities.Partition):
+                gpt_parts += f"name={partition.name},start={partition.start_bytes},size={partition.size_bytes},type={partition.partition_type};"
+
+        layout_fd.write(f'gpt_parts={gpt_parts}\n')
+        layout_fd.close()
+
     def _iface_uboot_mbr_env_file(self):
         mbr_parts = ""
 
@@ -95,8 +108,7 @@ class PreConfigurators:
 
                 mbr_parts += f"id={hex(int(partition_type, 16))};"
 
-            layout_fd.write(f'mbr_parts={mbr_parts}\n')
-
+        layout_fd.write(f'mbr_parts={mbr_parts}\n')
         layout_fd.close()
 
     def _iface_directory_structure(self):
